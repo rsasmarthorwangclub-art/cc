@@ -860,23 +860,21 @@
       }
     }
 
-    async function updateCheckInStatus(participantId, isChecked, activityId) {
+    async function updateCheckInStatus(participantId, newStatus, activityId) {
       try {
-        const statusText = isChecked ? 'มา' : 'ขาด';
+        const attendanceValue = newStatus ? 'มา' : 'ขาด';
         const { error } = await supabaseClient
           .from('participants')
           .update({ 
-            checked_in: isChecked,
-            attendance_status: statusText
+            checked_in: newStatus,
+            attendance_status: attendanceValue 
           })
           .eq('id', participantId);
 
         if (error) throw error;
-        
-        // โหลดข้อมูลหน้ารายละเอียดใหม่เพื่อรีเฟรชสถานะ
         loadAdminDetail(activityId);
       } catch (err) {
-        alert("❌ ไม่สามารถบันทึกสถานะได้: " + err.message);
+        alert("❌ อัปเดตสถานะเช็คชื่อไม่สำเร็จ: " + err.message);
       }
     }
 
@@ -1022,20 +1020,24 @@
           participants.forEach((p, pIndex) => {
             const prefixStr = p.prefix ? p.prefix : '';
             const fullName = `${prefixStr} ${p.first_name} ${p.last_name}`;
-            const isChecked = p.checked_in || p.attendance_status === 'มา' ? 'checked' : '';
+            const isChecked = p.checked_in || p.attendance_status === 'มา';
+
+            const btnClass = isChecked 
+              ? 'bg-emerald-500 text-white border-emerald-600 shadow-md scale-105' 
+              : 'bg-gray-200 text-gray-400 border-gray-300 opacity-60 hover:opacity-100';
+
+            const btnText = isChecked ? '✓ มาแล้ว' : 'ยังไม่มา';
 
             participantsRows += `
               <tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
                 <td class="p-3 text-center text-gray-500">${pIndex + 1}</td>
                 <td class="p-3 font-medium text-gray-900">${fullName}</td>
                 <td class="p-3 text-center">
-                  <label class="inline-flex items-center gap-1.5 cursor-pointer bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 text-blue-700 font-semibold text-xs">
-                    <input type="checkbox" 
-                           ${isChecked} 
-                           onchange="updateCheckInStatus('${p.id}', this.checked, '${activityId}')" 
-                           class="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500">
-                    <span>มาแล้ว</span>
-                  </label>
+                  <button 
+                    onclick="updateCheckInStatus('${p.id}', ${!isChecked}, '${activityId}')" 
+                    class="px-3 py-1.5 rounded-lg border text-xs font-bold transition-all duration-200 ${btnClass}">
+                    ${btnText}
+                  </button>
                 </td>
                 <td class="p-3 text-gray-600">📱 ${p.phone}</td>
                 <td class="p-3 text-gray-600">🏫 ${p.school || '-'}</td>
@@ -1082,7 +1084,7 @@
                     <tr>
                       <th class="p-3 text-center w-12">#</th>
                       <th class="p-3">ชื่อ-นามสกุล</th>
-                      <th class="p-3 text-center">เช็คชื่อ</th>
+                      <th class="p-3 text-center">สถานะ</th>
                       <th class="p-3">เบอร์โทรศัพท์</th>
                       <th class="p-3">ระดับชั้นปีการศึกษา</th>
                       <th class="p-3 text-center">จัดการ</th>
