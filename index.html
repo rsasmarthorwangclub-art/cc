@@ -1022,12 +1022,11 @@
             const fullName = `${prefixStr} ${p.first_name} ${p.last_name}`;
             const isChecked = p.checked_in || p.attendance_status === 'มา';
 
-            const btnClass = isChecked 
-              ? 'bg-emerald-500 text-white border-emerald-600 shadow-md scale-105' 
-              : 'bg-gray-200 text-gray-400 border-gray-300 opacity-60 hover:opacity-100';
+           const btnClass = isChecked 
+  ? 'bg-emerald-600 text-white border-emerald-700 shadow font-bold opacity-100' 
+  : 'bg-gray-200 text-gray-500 border-gray-300 opacity-50';
 
-            const btnText = isChecked ? '✓ มาแล้ว' : 'ยังไม่มา';
-
+const btnText = isChecked ? '✓ มาแล้ว' : 'ยังไม่มา';
             participantsRows += `
               <tr class="border-b border-gray-100 hover:bg-gray-50 text-sm">
                 <td class="p-3 text-center text-gray-500">${pIndex + 1}</td>
