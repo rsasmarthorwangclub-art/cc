@@ -772,19 +772,26 @@
       }
     }
 
-    function renderCheckinList() {
+   function renderCheckinList() {
       const container = document.getElementById('checkin-list-container');
       container.innerHTML = '';
 
       let total = checkinListData.length;
+      let present = 0, late = 0, leave = 0, absent = 0;
 
       if (total === 0) {
         container.innerHTML = `<p class="text-center text-gray-400 py-6 text-sm">ยังไม่มีรายชื่อบุคลากร กดปุ่ม "+ เพิ่มรายชื่อ" ด้านบนเพื่อเพิ่มข้อมูล</p>`;
       } else {
         checkinListData.forEach((p, index) => {
-          const isChecked = p.checked_in === true || p.attendance_status === 'มา';
-          const btnClass = isChecked ? 'btn-checkin-on' : 'btn-checkin-off';
-          const btnText = isChecked ? '✓ มาแล้ว' : 'ยังไม่มา';
+          let status = p.attendance_status;
+          if (!status) {
+            status = p.checked_in ? 'มา' : 'ขาด';
+          }
+
+          if (status === 'มา') present++;
+          else if (status === 'สาย') late++;
+          else if (status === 'ลา') leave++;
+          else absent++;
 
           const prefixStr = p.prefix ? p.prefix : '';
           const fullName = `${prefixStr}${p.first_name} ${p.last_name}`;
