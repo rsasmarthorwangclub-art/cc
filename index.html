@@ -38,7 +38,7 @@
       aspect-ratio: 16 / 9;
     }
 
-    /* สไตล์ปุ่มเช็คชื่อแบบคงที่ที่นำมาจากเวอร์ชัน 16 */
+    /* สไตล์ปุ่มเช็คชื่อแบบคงที่ */
     .btn-checkin-off {
       background-color: #e5e7eb !important;
       color: #6b7280 !important;
@@ -331,8 +331,8 @@
           <div class="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-2xl flex items-start space-x-3">
             <span class="text-xl">ℹ️</span>
             <div class="text-sm">
-              <span class="font-bold">สถานะเริ่มต้นก่อนเช็คชื่อสำหรับทุกคนจะถูกตั้งค่าเป็น "ยังไม่มา" (ปุ่มสีเทา)</span><br>
-              กดปุ่มเพื่อเปลี่ยนสถานะเป็น "มาแล้ว" (ปุ่มสีเขียว)
+              <span class="font-bold">กดปุ่มเพื่อบันทึกสถานะลง SQL แบบเรียลไทม์:</span><br>
+              ปุ่มสีเขียว = `checked_in: true` | ปุ่มสีเทา = `checked_in: false`
             </div>
           </div>
 
@@ -342,13 +342,13 @@
                 <span class="bg-blue-100 text-blue-700 w-7 h-7 rounded-full flex items-center justify-center font-bold text-sm">1</span>
                 <h2 class="font-bold text-lg text-gray-800">กำหนดข้อมูลกิจกรรม</h2>
               </div>
-              <span class="text-sm text-gray-500" id="current-date-label">1 กันยายน 2569</span>
+              <span class="text-sm text-gray-500" id="current-date-label">3 กันยายน 2569</span>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">📅 เลือกวันที่ (Date)</label>
-                <input type="date" id="checkin-date" value="2026-09-01" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                <input type="date" id="checkin-date" value="2026-09-03" class="w-full bg-white border border-gray-300 rounded-xl px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
               </div>
               <div>
                 <label class="block text-xs font-semibold text-gray-600 mb-1">📚 เลือกรูปแบบกิจกรรม</label>
@@ -524,7 +524,6 @@
       drop.classList.toggle('hidden');
     }
 
-    // ปิด Dropdown เมื่อคลิกที่อื่น
     window.addEventListener('click', function(e) {
       const drop = document.getElementById('rsa-dropdown');
       const button = e.target.closest('button');
@@ -660,7 +659,7 @@
         });
       } catch (err) {
         console.error(err);
-        document.getElementById('activity-list').innerHTML = `<p class="text-white col-span-full text-center">เกิดข้อผิดพลาดในการดึงข้อมูล</p>`;
+        document.getElementById('activity-list').innerHTML = `<p class="text-white col-span-full text-center">เกิดข้อผิดพลาดในการโหลดข้อมูล</p>`;
       }
     }
 
@@ -754,24 +753,25 @@
       }
     }
 
+    /* โหลดข้อมูลโดยตรงจากตาราง participants ใน SQL */
     async function loadCheckinData() {
       try {
-        let { data, error } = await supabaseClient.from('attendance_status').select('*').order('created_at', { ascending: true });
-        
-        if (error || !data || data.length === 0) {
-          const res = await supabaseClient.from('participants').select('*').order('created_at', { ascending: true });
-          data = res.data || [];
-        }
+        const { data, error } = await supabaseClient
+          .from('participants')
+          .select('*')
+          .order('created_at', { ascending: true });
 
-        checkinListData = data;
+        if (error) throw error;
+
+        checkinListData = data || [];
         renderCheckinList();
       } catch (err) {
-        console.error(err);
-        document.getElementById('checkin-list-container').innerHTML = `<p class="text-center text-red-500 py-6">ไม่สามารถโหลดข้อมูลรายชื่อได้</p>`;
+        console.error('Error loading checkin data:', err);
+        document.getElementById('checkin-list-container').innerHTML = 
+          `<p class="text-center text-red-500 py-6">ไม่สามารถโหลดข้อมูลรายชื่อได้: ${err.message}</p>`;
       }
     }
 
-    // ฟังก์ชัน render รายชื่อเช็คชื่อ ที่นำโครงสร้างปุ่มจากเวอร์ชัน 16 มาใช้
     function renderCheckinList() {
       const container = document.getElementById('checkin-list-container');
       container.innerHTML = '';
@@ -815,13 +815,13 @@
       }
     }
 
-    // ฟังก์ชันเช็คชื่อสลับสถานะเรียลไทม์ (กดสีเทาแล้วกลายเป็นเขียว / กดสีเขียวกลายเป็นเทา) จากเวอร์ชัน 16
+    /* ฟังก์ชันสลับสถานะและบันทึกลง SQL โดยตรง */
     async function toggleCheckInStatus(participantId, currentStatus) {
       const btn = document.getElementById(`btn-check-${participantId}`);
       const newStatus = !currentStatus;
       const attendanceValue = newStatus ? 'มา' : 'ขาด';
 
-      // 1. เปลี่ยน UI หน้าจอทันที ไม่ต้องรีโหลด
+      // 1. เปลี่ยน UI ทันที
       if (newStatus) {
         btn.className = "px-4 py-1.5 rounded-xl border text-xs cursor-pointer btn-checkin-on";
         btn.innerHTML = "✓ มาแล้ว";
@@ -830,37 +830,29 @@
         btn.innerHTML = "ยังไม่มา";
       }
 
-      // เปลี่ยนค่าที่ปุ่มส่งกลับไปเพื่อใช้ในการกดครั้งต่อไป
       btn.setAttribute("onclick", `toggleCheckInStatus('${participantId}', ${newStatus})`);
 
-      // อัปเดตข้อมูลในอาร์เรย์ภายใน
+      // อัปเดตข้อมูลภายในอาร์เรย์
       const target = checkinListData.find(item => String(item.id) === String(participantId));
       if (target) {
         target.checked_in = newStatus;
         target.attendance_status = attendanceValue;
       }
 
-      // 2. บันทึกลงฐานข้อมูล Supabase
+      // 2. ส่งคำสั่ง UPDATE ไปที่ SQL Database (ตาราง participants)
       try {
-        let { error } = await supabaseClient
-          .from('attendance_status')
+        const { error } = await supabaseClient
+          .from('participants')
           .update({ 
             checked_in: newStatus,
             attendance_status: attendanceValue 
           })
           .eq('id', participantId);
 
-        if (error) {
-          await supabaseClient
-            .from('participants')
-            .update({ 
-              checked_in: newStatus,
-              attendance_status: attendanceValue 
-            })
-            .eq('id', participantId);
-        }
+        if (error) throw error;
       } catch (err) {
-        alert("❌ บันทึกสถานะไม่สำเร็จ: " + err.message);
+        console.error('Update failed:', err);
+        alert("❌ ไม่สามารถอัปเดตลง SQL ได้: " + err.message);
       }
     }
 
@@ -868,8 +860,12 @@
       if (!confirm(`⚠️ คุณแน่ใจหรือไม่ที่จะลบรายชื่อ "${fullName}" ออกจากระบบ?`)) return;
 
       try {
-        let { error } = await supabaseClient.from('attendance_status').delete().eq('id', id);
-        await supabaseClient.from('participants').delete().eq('id', id);
+        const { error } = await supabaseClient
+          .from('participants')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
 
         alert("🗑️ ลบรายชื่อสำเร็จ!");
         
@@ -913,10 +909,8 @@
       };
 
       try {
-        let { error } = await supabaseClient.from('attendance_status').insert([newPerson]);
-        if (error) {
-          await supabaseClient.from('participants').insert([newPerson]);
-        }
+        const { error } = await supabaseClient.from('participants').insert([newPerson]);
+        if (error) throw error;
         
         alert("➕ เพิ่มรายชื่อเรียบร้อยแล้ว!");
         closeAddModal();
